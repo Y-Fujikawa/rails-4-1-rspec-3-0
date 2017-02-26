@@ -14,85 +14,53 @@ describe Contact do
 
   # 名がなければ無効な状態であること
   it "is invalid without a firstname" do
-    contact = Contact.new(firstname: nil)
+    contact = build(:contact, firstname: nil)
     contact.valid?
     expect(contact.errors[:firstname]).to include("can't be blank")
   end
 
   # 性がなければ無効な状態であること
   it "is invalid without a lastnam" do
-    contact = Contact.new(lastname: nil)
+    contact = build(:contact, lastname: nil)
     contact.valid?
     expect(contact.errors[:lastname]).to include("can't be blank")
   end
 
   # メールアドレスがなければ無効な状態であること
   it "is invalid without an email address" do
-    Contact.create(
-               firstname: 'Joe',
-               lastname: 'Tester',
-               email: 'tester@example.com'
-    )
-    contact = Contact.new(
-                         firstname: 'Joe',
-                         lastname: 'Tester',
-                         email: 'tester@example.com'
-    )
-
+    contact = build(:contact, email: nil)
     contact.valid?
-    expect(contact.errors[:email]).to include("has already been taken")
+    expect(contact.errors[:email]).to include("can't be blank")
   end
 
   # 重複したメールアドレスなら無効な状態であること
   it "is invalid with a duplicate email address" do
-    contact = Contact.create(
-                         firstname: 'Joe',
-                         lastname: 'Tester',
-                         email: 'tester@example.com'
-    )
-    contact.phones.create(
-                      phone_type: 'home',
-                      phone: '785-555-1234'
-    )
-    mobile_phone = contact.phones.build(
-                                     phone_type: 'mobile',
-                                     phone: '785-555-1234'
-    )
+    create(:contact, email: "aaron@example.com")
+    contact = build(:contact, email: "aaron@example.com")
+    contact.valid?
+    expect(contact.errors[:email]).to include("has already been taken")
+  end
+
+  # 連絡先ごとに重複した電話番號を許可しないこと
+  it "does not allow duplicate phone numbers per contact" do
+    contact = create(:contact)
+    create(:home_phone, contact: contact, phone: '785-555-1234')
+    mobile_phone = build(:mobile_phone, contact: contact, phone: '785-555-1234')
 
     mobile_phone.valid?
-    expect(mobile_phone.errors[:phone]).to include('has already been taken')
+    expect(mobile_phone.errors[:phone]).to include("has already been taken")
+  end
+
+  # 2件の連絡先で同じ電話番號を共有できること
+  it "allows tow contacts to share a phone number" do
+    create(:home_phone, phone_type: 'home', phone: '785-555-1234')
+    expect(build(:home_phone, phone: '785-555-1234')).to be_valid
   end
 
   # 連絡先のフルネームを文字列として返すこと
   it "returns a contact's full name as a string" do
-    contact = Contact.create(
-        firstname: 'Joe',
-        lastname: 'Tester',
-        email: 'tester@example.com'
-    )
-    contact.phones.create(
-        phone_type: 'home',
-        phone: '785-555-1234'
-    )
-
-    other_contact = Contact.new
-    other_phone = other_contact.phones.build(
-                                            phone_type: 'home',
-                                            phone: '785-555-1234'
-    )
-
-    expect(other_phone).to be_valid
-  end
-
-  # 連絡先のフルネームを文字列として返すこと
-  it "returns a contact's full name as a string" do
-    contact = Contact.new(
-                         firstname: 'John',
-                         lastname: 'Doe',
-                         email: 'tester@example.com'
-    )
-
-    expect(contact.name).to eq 'John Doe'
+    contact = build(:contact, firstname: "Jane", lastname: "Smith")
+    expect(contact.name).to eq 'Jane Smith'
   end
 
   describe "filter last name by letter" do
@@ -128,5 +96,15 @@ describe Contact do
         expect(Contact.by_letter("J")).not_to include @smith
       end
     end
+  end
+
+  # 有効なファクトリを持つこと
+  it "has a valid factory" do
+    expect(build(:contact)).to be_valid
+  end
+
+  # 3つの電話番號を持つこと
+  it "has three phone numbers" do
+    expect(create(:contact).phones.count).to eq 3
   end
 end
